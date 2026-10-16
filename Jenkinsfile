@@ -5,14 +5,10 @@ pipeline {
         maven 'Maven-3.9.16'
     }
 
-    environment {
-        SONARQUBE_ENV = 'SonarQube'
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/yuvraj0702/maven-jenkins-demo.git'
+                checkout scm
             }
         }
 
@@ -22,21 +18,24 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('Snyk Security Scan') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    bat 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=maven-jenkins-demo -Dsonar.projectName="maven-jenkins-demo"'
-                }
+                snykSecurity(
+                    snykInstallation: 'snyk',
+                    snykTokenId: 'snyk-token',
+                    failOnIssues: false,
+                    severity: 'high'
+                )
             }
         }
     }
 
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo 'Pipeline with Snyk scan completed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Check console output for details.'
+            echo 'Pipeline failed.'
         }
     }
 }
