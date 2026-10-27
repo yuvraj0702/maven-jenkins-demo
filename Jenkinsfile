@@ -6,6 +6,18 @@ pipeline {
     }
 
     stages {
+        stage('Notify Start') {
+            steps {
+                slackSend(
+                    channel: '#jenkins-notifications',
+                    tokenCredentialId: 'slack-token',
+                    botUser: true,
+                    color: '#439FE0',
+                    message: "STARTED: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} (${env.BUILD_URL})"
+                )
+            }
+        }
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -17,34 +29,26 @@ pipeline {
                 bat 'mvn clean package'
             }
         }
-
-        stage('Upload to Nexus') {
-            steps {
-                nexusArtifactUploader(
-                    nexusVersion: 'nexus3',
-                    protocol: 'http',
-                    nexusUrl: 'localhost:8081',
-                    groupId: 'com.example',
-                    version: '1.0-SNAPSHOT',
-                    repository: 'maven-snapshots',
-                    credentialsId: 'nexus-credentials',
-                    artifacts: [
-                        [artifactId: 'maven-jenkins-demo',
-                         classifier: '',
-                         file: 'target/maven-jenkins-demo-1.0-SNAPSHOT.jar',
-                         type: 'jar']
-                    ]
-                )
-            }
-        }
     }
 
     post {
         success {
-            echo 'Artifact uploaded to Nexus successfully!'
+            slackSend(
+                channel: '#jenkins-notifications',
+                tokenCredentialId: 'slack-token',
+                botUser: true,
+                color: 'good',
+                message: "SUCCESS: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} (${env.BUILD_URL})"
+            )
         }
         failure {
-            echo 'Pipeline failed.'
+            slackSend(
+                channel: '#jenkins-notifications',
+                tokenCredentialId: 'slack-token',
+                botUser: true,
+                color: 'danger',
+                message: "FAILED: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} (${env.BUILD_URL})"
+            )
         }
     }
 }
