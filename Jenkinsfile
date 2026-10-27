@@ -1,54 +1,33 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven-3.9.16'
-    }
-
     stages {
-        stage('Notify Start') {
-            steps {
-                slackSend(
-                    channel: '#jenkins-notifications',
-                    tokenCredentialId: 'slack-token',
-                    botUser: true,
-                    color: '#439FE0',
-                    message: "STARTED: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} (${env.BUILD_URL})"
-                )
-            }
-        }
-
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
-                bat 'mvn clean package'
+                bat 'docker build -t jenkins-demo-app:%BUILD_NUMBER% -t jenkins-demo-app:latest .'
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                bat 'docker rm -f jenkins-demo-app 2>nul || exit /b 0'
+                bat 'docker run -d --name jenkins-demo-app -p 9090:80 jenkins-demo-app:latest'
             }
         }
     }
 
     post {
         success {
-            slackSend(
-                channel: '#jenkins-notifications',
-                tokenCredentialId: 'slack-token',
-                botUser: true,
-                color: 'good',
-                message: "SUCCESS: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} (${env.BUILD_URL})"
-            )
+            echo 'Docker image built and deployed on http://localhost:9090'
         }
         failure {
-            slackSend(
-                channel: '#jenkins-notifications',
-                tokenCredentialId: 'slack-token',
-                botUser: true,
-                color: 'danger',
-                message: "FAILED: Job '${env.JOB_NAME}' build #${env.BUILD_NUMBER} (${env.BUILD_URL})"
-            )
+            echo 'Pipeline failed.'
         }
     }
 }
